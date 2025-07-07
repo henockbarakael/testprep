@@ -4,6 +4,7 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   images: { unoptimized: true },
+  optimizeFonts: false,
   experimental: {
     serverComponentsExternalPackages: ['@prisma/client', 'prisma']
   },

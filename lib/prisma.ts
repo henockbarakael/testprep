@@ -2,11 +2,12 @@ import { createFallbackPrisma } from './fallback-prisma'
 
 let prisma: any
 
-// Check if we're in a containerized environment where Prisma binaries can't be downloaded
-const isContainerized = process.env.NODE_ENV === 'development' && 
-  (process.env.STACKBLITZ || process.env.WEBCONTAINER || !process.env.DATABASE_URL)
+// Check if we should use fallback Prisma client
+const shouldUseFallback = process.env.USE_FALLBACK_PRISMA === 'true' ||
+  (process.env.NODE_ENV === 'development' && 
+  (process.env.STACKBLITZ || process.env.WEBCONTAINER || !process.env.DATABASE_URL))
 
-if (isContainerized) {
+if (shouldUseFallback) {
   console.log('Using fallback Prisma client for containerized environment')
   prisma = createFallbackPrisma()
 } else {
