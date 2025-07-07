@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start", 
-    "postinstall": "prisma generate",
+    "postinstall": "prisma generate --skip-generate || echo 'Prisma generation skipped'",
     "lint": "next lint"
   },
   "dependencies": {
