@@ -1,11 +1,18 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export',
-  optimizeFonts: false,
   eslint: {
     ignoreDuringBuilds: true,
   },
   images: { unoptimized: true },
+  experimental: {
+    serverComponentsExternalPackages: ['@prisma/client', 'prisma']
+  },
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      config.externals.push('@prisma/client')
+    }
+    return config
+  }
 };
 
 module.exports = nextConfig;
