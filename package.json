@@ -6,8 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start", 
-    "postinstall": "echo 'Skipping prisma generate in containerized environment'",
-    "prisma:generate": "prisma generate || echo 'Prisma generation failed, using fallback'",
+    "postinstall": "npm run prisma:generate || echo 'Prisma generation failed, using fallback'",
+    "prisma:generate": "prisma generate --skip-generate || echo 'Using fallback Prisma client'",
     "lint": "next lint"
   },
   "dependencies": {
