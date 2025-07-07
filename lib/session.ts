@@ -1,67 +1,94 @@
-import { cookies } from 'next/headers';
 import { PrismaClient } from '@prisma/client';
+import { parse } from 'cookie';
+import { cookies } from 'next/headers';
 
 const prisma = new PrismaClient();
 
-export interface Session {
-  id: string;
-  userId: string;
-  expiresAt: Date;
-}
-
-export async function getSession(request: Request): Promise<Session | null> {
+export async function getSession(request: Request) {
   try {
-    // Extraire le cookie de session depuis les headers
     const cookieHeader = request.headers.get('cookie');
     if (!cookieHeader) return null;
-
-    const sessionCookie = cookieHeader
-      .split(';')
-      .find(c => c.trim().startsWith('session='));
     
-    if (!sessionCookie) return null;
-
-    const sessionId = sessionCookie.split('=')[1];
+    const cookies = parse(cookieHeader);
+    const sessionId = cookies.session;
     if (!sessionId) return null;
 
-    // Vérifier la session en base de données
     const session = await prisma.session.findUnique({
       where: { id: sessionId },
       include: { user: true }
     });
 
-    if (!session || session.expiresAt < new Date()) {
-      // Session expirée ou inexistante
-      if (session) {
-        await prisma.session.delete({ where: { id: sessionId } });
-      }
+    if (!session) return null;
+
+    // Add 5-minute buffer for clock skew
+    const now = new Date();
+    const expiresAt = new Date(session.expiresAt);
+    const bufferTime = 5 * 60 * 1000; // 5 minutes
+    
+    if (now > new Date(expiresAt.getTime() + bufferTime)) {
+      // Auto-delete expired session
+      await deleteSession(sessionId);
       return null;
     }
 
-    return {
-      id: session.id,
-      userId: session.userId,
-      expiresAt: session.expiresAt
-    };
+    return session;
   } catch (error) {
-    console.error('Erreur lors de la récupération de la session:', error);
+    console.error('Session error:', error);
     return null;
   }
 }
 
-export async function createSession(userId: string): Promise<string> {
-  const session = await prisma.session.create({
-    data: {
-      userId,
-      expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7), // 7 jours
-    },
-  });
+// New version for Server Components
+export async function getServerSession() {
+  try {
+    const cookieStore = cookies();
+    const sessionId = (await cookieStore).get('session')?.value;
+    
+    if (!sessionId) return null;
 
-  return session.id;
+    const session = await prisma.session.findUnique({
+      where: { id: sessionId },
+      include: { user: true }
+    });
+
+    if (!session) return null;
+
+    // Add 5-minute buffer for clock skew
+    const now = new Date();
+    const expiresAt = new Date(session.expiresAt);
+    const bufferTime = 5 * 60 * 1000; // 5 minutes
+    
+    if (now > new Date(expiresAt.getTime() + bufferTime)) {
+      // Auto-delete expired session
+      await deleteSession(sessionId);
+      return null;
+    }
+
+    return session;
+  } catch (error) {
+    console.error('Session error:', error);
+    return null;
+  }
 }
 
-export async function deleteSession(sessionId: string): Promise<void> {
-  await prisma.session.delete({
+export async function createSession(userId: string) {
+  return prisma.session.create({
+    data: {
+      userId,
+      expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7), // 1 week
+    },
+  });
+}
+
+export async function deleteSession(sessionId: string) {
+  return prisma.session.delete({
     where: { id: sessionId },
+  });
+}
+
+export async function refreshSession(sessionId: string) {
+  return prisma.session.update({
+    where: { id: sessionId },
+    data: { expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7) },
   });
 }
